@@ -5,13 +5,13 @@ type: Note
 
 skill 写作原则：
 
-1. **从真实经验中提炼 skill，不要让模型凭通用知识凭空生成：**最好的来源是实际任务、review comments、事故记录、runbook、历史修复。
-2. **只写 agent 缺少的东西。**只告诉模型它容易做错、且必须知道的东西，不重新教授它本来就知道的一整套通用知识。没有这条 instruction，agent 会不会做错？
-3. **控制 scope。**太窄会导致一次任务加载很多 skill；太宽又会难以精准触发，并让无关规则干扰执行。可以把 skill 当成设计 function。
-4. **Less is more。**过于完整的 skill 反而可能让 agent 执行不适用的规则。简洁、逐步、带少量关键例子。
+1. \*\*从真实经验中提炼 skill，不要让模型凭通用知识凭空生成\*\*：最好的来源是实际任务、review comments、事故记录、runbook、历史修复。
+2. \*\*只写 agent 缺少的东西\*\*。只告诉模型它容易做错、且必须知道的东西，不重新教授它本来就知道的一整套通用知识。没有这条 instruction，agent 会不会做错？
+3. \*\*控制 scope\*\*。太窄会导致一次任务加载很多 skill；太宽又会难以精准触发，并让无关规则干扰执行。可以把 skill 当成设计 function。
+4. \*\*Less is more\*\*。过于完整的 skill 反而可能让 agent 执行不适用的规则。简洁、逐步、带少量关键例子。
 5. **使用 reference。**`SKILL.md` 只放每次都需要的核心规则；详细知识放到 `references/`，而且要明确写出**什么时候读取哪个 reference**。
-6. **方案和目标。**多种方案都合理时，给 agent 判断空间，并说明目标；容易出错、顺序敏感、破坏性强的任务才应该使用严格步骤。
-7. **迭代 skill。**看最终结果，也看 execution trace：false positive、漏触发、绕路、无意义步骤、过多选择，都是需要修改 skill 的信号。
+6. \*\*方案和目标\*\*。多种方案都合理时，给 agent 判断空间，并说明目标；容易出错、顺序敏感、破坏性强的任务才应该使用严格步骤。
+7. \*\*迭代 skill。\*\*看最终结果，也看 execution trace：false positive、漏触发、绕路、无意义步骤、过多选择，都是需要修改 skill 的信号。
 
 description: Focus on user intent, not implementation.
 
@@ -25,7 +25,7 @@ description: Focus on user intent, not implementation.
   Use when [user intent / task / artifact / context].\\
   Also use when [important implicit cases].\\
   Do not use for [confusing adjacent cases].
-  
+
 
 
 ## 检查当前状态
@@ -51,7 +51,7 @@ If Prefect, 检查实验进程
 1. Google：一般不要使用 `staticmethod`，写 module-level function。
 2. function - module - class：如无必要，勿增实体。
 
-** **`SKILL.md`负责：
+\*\* \*\*`SKILL.md`负责：
 
 - 什么时候触发？
 - 要不要读 reference？
