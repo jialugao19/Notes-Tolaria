@@ -1,7 +1,7 @@
 ---
 type: Note
 ---
-# Prefect
+# Prefect + ServeChan
 
 experiment\_id = 这是什么实验
 cwd = 在哪里执行代码

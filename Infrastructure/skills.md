@@ -37,10 +37,19 @@ description: Focus on user intent, not implementation.
 If Prefect, 检查实验进程
 
 
-### gpush
+### check-mlflow-prefect
 
-需要重新设计 commit 相关 skill。目前已删除
+仅显式调用时使用，检查
 
+- MLflow （[http://127.0.0.1:5000](http://127.0.0.1:5000)）
+- Prefect  API
+- 本地 Prefect executor 
+
+
+
+### check-sentence
+
+计划中：检查文章中的 AI 痕迹，比如 “不是”等防御性话语
 
 
 
