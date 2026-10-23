@@ -1,7 +1,7 @@
 ---
 type: Note
 ---
-# NN-1min-Ashare-Prediction
+# NN-10min-Ashare-Prediction
 
 ## Data
 
@@ -435,6 +435,10 @@ type: Note
 - 日期：0902-0904
 
 
+### mixed-time batch
+
+日期：1023
+
 
 
 ## Infrastructure
@@ -451,6 +455,32 @@ type: Note
 - 硬编码问题
 - 因为要使用模型，所以存在 market panel 问题，即把一整个交易日放入同一个 batch
 
+### New Baseline - 5 repo =
+
+日期：1022-1023
+
+- 数据： A 股 1 分钟行情，2021-01-04 至 2024-12-31。训练集截至 2023-12-29，验证集截至 2024-02-29，其后为测试集。使用修正后的 v001_1min FeatureArtifact。
+- 输入与标签： 每只股票输入连续 60 根 1 分钟 bar，每根 41 个特征。主标签为 log_close[t+11] - log_close[t+1]，即 entry lag 1 分钟、holding horizon 10 分钟；只在同一交易日内构造有效标签。
+- 标准化： feature 和主标签分别使用 pooled z-score；均值、标准差只由训练集拟合，验证和测试集不参与拟合。
+- 特征： 3 类，共 41 个，顺序由 features.yaml (exp-repo/exps/baseline/configs/features.yaml) 固定。
+  - 基础日内特征，17 个：ret_1m, ret_2m, ret_3m, ret_5m, ret_10m, hl, oc, log_vol, log_amount, log_vol_5m_mean, log_amount_5m_mean, vol_same_minute_60d_pct, vol_trailing_5m_pct,
+    vol_trailing_20m_pct, amount_trailing_60m_pct, minute_norm, vol_10m。
+
+  - 多尺度股票状态，17 个：6 个 state_realized_vol\*、6 个 state_range\*、5 个 state_return_shell\*，覆盖 5 至 480 分钟的区间或历史分层。
+  - 同分钟截面排名，7 个：stock_ret\_{5,20,60,240}m_cs_rank, stock_rv\_{20,60}m_cs_rank, stock_log_amount_cs_rank。
+- 模型： 当前仅训练 1 组模型，约 184.13 万参数。实现为两层单向 GRU，hidden size 384；取最后一层 hidden state，接 [512, 512] 的 LayerNorm MLP，输出单个标准化收益预测。
+- 训练： seed 7；AdamW，learning rate 1e-3，weight decay 0.01；有限标签上的 MSE loss；单张 GPU cuda:0，FP16 AMP；每个完整同分钟 panel 执行一次 optimizer step，梯度累积为 1。学习率先做 200 step linear warmup，起始系数 0.001，随后 cosine decay 至 1e-6。对所有可训练 panel 做全局随机排列，单个 epoch 无放回取样。
+- 训练预算： 约 727 个交易日 × 每分钟约 4,700 只股票 × 每天约 160 个有效窗口，可作为约 5.5 亿条股票序列的规模估算。实际训练按 panel 计，共 117,047 个 optimizer steps，完整 1 epoch；不同 panel 的有效股票数并不相同。
+- Checkpoint 与 selection： 约每 5% 保存，约每 10% 验证，均包含精确终点 S=117047。按 validation selection 选中 step_105343，gap gate 已通过；test target 不参与选择。Checkpoint 保存 model、optimizer、scheduler、AMP scaler、下一 panel 位置及 Python/NumPy/PyTorch CPU/CUDA RNG 状态，并保存用于核对的 config hash、FeatureArtifact ID、panel fingerprint、panel 排列 hash 和代码 fingerprint。完整配置在同一 run 目录的 config.yaml，DataArtifact ID 由 FeatureArtifact lineage 追溯；它们不是全部作为原文嵌入 .pt 文件。
+- 实验跟踪与调度： 复用已启动的 MLflow 和 Prefect 服务，本次不另起实例或注册新 deployment。MLflow 宿主机 UI 为 http://127.0.0.1:5000，当前运行环境连接 http://172.22.0.1:5000；本次 MLflow run ID 为 cd7c0a1eea644d83ac775012a65b36d9，状态 FINISHED。记录 train/loss、train/lr、train/amp_scale，以及 val/mse、val/pooled_ic、val/pooled_rank_ic；selection score 和 gap gate 另保存在 run 证据中。Prefect 复用已注册的 experiment-runner/m-nas served deployment；宿主机 UI 为 http://127.0.0.1:4201，当前运行环境 API 为http://172.22.0.1:4201/api。本次训练 flow ID 为 bad4ee11-f583-477c-bce4-d492c1e30908，状态 COMPLETED。
+- 参数与实现依据：model.yaml (exp-repo/exps/baseline/runs/baseline-exps-full-20261023-r3/model.yaml)、EXPERIMENT.md (exp-repo/exps/baseline/EXPERIMENT.md)、network.py (exp-repo/
+  exp-nn-model/model_pipeline/network.py)、TRAINING.md (exp-repo/exp-nn-model/docs/TRAINING.md)。
+
+
+
+## Identification
+
+模型的 IC 到底是在预测未来市场共同涨跌，还是在预测股票之间的相对收益？
 
 
 
@@ -505,3 +535,32 @@ type: Note
 
 - test 去掉 24年 9/10
 - ablation：features 单独去掉一个，比如 vol_same_minute_60d_pct, 只 train 一小段时间。
+
+1023
+
+- 历史长度：过去 10、30、60 分钟是否有可预测的信息？需要进行 Lookback ablation
+- 特征构造：收益、成交量、波动状态和截面排名是否提供增量信息？需要进行 Feature ablation
+- 时间序列建模：41 个当前特征已概括大量历史信息，GRU 是否还能从历史路径中提取新的信号？
+
+1023
+
+- 目前是 Full-panel，每步 1 个分钟 × 约 4,700 只股票
+- 考虑第一步，尝试 Stratified mixed-time batch，每步 16 个随机分钟 × 每分钟约 294 只股票
+- 同时考虑，完全随机股票序列 batch，从所有 `(stock, minute)` 样本中全局洗牌，每步约 4,700 条
+
+之前实际上尝试过三种不同层级的随机化：
+
+1. Mixed-date： 一个 batch 混合不同日期、不同分钟的股票。
+2. Day-pure： 一个 batch 只来自一个交易日，但可以混合该日不同分钟。
+3. Full-panel： 一个 batch 只来自一个具体分钟，包含该分钟的全部有效股票。
+
+| 维度 | Mixed-date | Day-pure | Full-panel（当前） |
+| --- | --- | --- | --- |
+| 输入 | 60×14 | 60×14 | 60×41 |
+| Batch size | 8,192 | 8,192 | 约 4,700 |
+| 每步覆盖 | 多日期、多分钟 | 单日期、多分钟 | 单分钟 |
+| 训练总 steps | 100,000 | 68,659 | 117,047 |
+| 选中 checkpoint | 20,000 | 30,000 | 105,343 |
+| 训练采样 | 全局 shuffle | 批间允许重复 | panel 无放回 |
+| Test pooled IC | 0.070345 | 0.103878 | 0.120249 |
+| Test pooled RankIC | 0.051239 | 0.064245 | 0.092178 |
